@@ -58,4 +58,43 @@ PREDICTION_BATCH_SIZE = 1
 frame_shape= (84,84)
 input_shape =(84,84,4)
 
+def process_frame(frame):
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    frame = cv2.resize(frame, (frame_shape), interpolation=cv2.INTER_AREA)
+    return frame
+
+config = tf.ConfigProto(device_count={'GPU': 1},
+    intra_op_parallelism_threads=1,
+    allow_soft_placement=True)
+config.gpu_options.allow_growth=True
+sess = tf.Session(config=config)
+K.set_session(sess)
+
+def array_from_pixbuf(p):
+    " convert from GdkPixbuf to numpy array"
+    w,h,c,r=(p.get_width(), p.get_height(), p.get_n_channels(), p.get_rowstride())
+    assert p.get_colorspace() == Pixbuf.Colorspace.RGB
+    assert p.get_bits_per_sample() == 8
+    if  p.get_has_alpha():
+        assert c == 4
+    else:
+        assert c == 3
+    assert r >= w * c
+    a=np.frombuffer(p.get_pixels(),dtype=np.uint8)
+    if a.shape[0] == wch:
+        return a.reshape( (h, w, c) )
+    else:
+        b=np.zeros((h,wc),'uint8')
+        for j in range(h):
+            b[j,:]=a[rj:rj+wc]
+        return b.reshape( (h, w, c) )
+def  screen_getter():
+    screen = Gdk.get_default_root_window().get_screen()
+    w = screen.get_active_window()
+    x , y , u , d = w.get_geometry()
+    pb = Gdk.pixbuf_get_from_window(w, x , y , u , d)
+    state = array_from_pixbuf(pb)
+    state = cv2.resize(state,(IM_WIDTH,IM_HEIGHT))
+    return state
+
 
