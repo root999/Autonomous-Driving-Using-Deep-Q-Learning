@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Oct 23 00:12:39 2019
-
 @author: cagri
 """
 from keras.models import Sequential
@@ -148,4 +147,156 @@ class DQNAgent:
             print("creating new model")
             return model
 
+    def stack_frames(self,state,reset=False):
+        """
+        Alınan bir frame'nin işlenerek 4'lü frameStack'in oluşturulması için kullanılır.
+        Reset=True durumunda tura yeni başlandığı için aynı frame 4 kere stack'e basılmaktadır.
+        return edilen deque objesi stackFrame numpy array'e dönüştürülerek yapay sinir ağı beslenmektedir
+        """
+        state = process_frame(state)
 
+        if reset:
+            self.stack = deque([np.zeros(frame_shape, dtype=np.uint8) for i in range(4)], maxlen=4)
+            for _ in range(4):
+                self.stack.append(state)            
+        else:
+            self.stack.append(state)
+        state_stack = np.stack(self.stack,axis=2)
+        return state_stack
+    def make_action(self,epsilon,state):
+        if np.random.random() > epsilon:
+            action = np.argmax(agent.get_qs(state))
+        else:
+            action = np.random.randint(0,self.num_actions)
+        return action
+            
+    def update_memory(self, transition):
+        self.replay_memory.append(transition)
+    
+    def train(self):
+        global sess
+        if len(self.replay_memory) < MIN_MEMORY_SIZE:
+            return
+        minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
+        current_states = np.array([transition[0] for transition in minibatch])/255
+        try:
+            with sess.as_default():
+                with sess.graph.as_default():
+                    #print("trainstarted")
+                    current_qs_list = self.training_model.predict(current_states,PREDICTION_BATCH_SIZE)
+        except Exception as ex:
+             print('Train ilk')
+
+        new_current_states = np.array([transition[3] for transition in minibatch])/255
+        try:
+            with sess.as_default():
+                with sess.graph.as_default():
+                    new_qs_list = self.target_model.predict(new_current_states,PREDICTION_BATCH_SIZE)
+        except Exception as ex:
+            print('Train iki')
+
+
+        X = []
+        y = []
+        for index, (current_state,action,reward,_,done) in enumerate(minibatch):
+            if not done:
+                max_new_q = np.max(new_qs_list[index])
+                new_q = reward + DISCOUNT*max_new_q
+            else:
+
+                new_q = reward
+            
+            current_qs = current_qs_list[index]
+            current_qs[action] = new_q
+
+            X.append(current_state)
+            y.append(current_qs)
+        self.logq_values.write(self.episode,self.step,current_qs)
+        log_it = False
+
+        if self.tensorboard.step > self.last_logged_episode:
+            log_it = True
+            self.last_log_episode = self.tensorboard.step
+        try:
+            with sess.as_default():
+                with sess.graph.as_default():
+                    self.training_model.fit(np.array(X)/255, np.array(y), batch_size=TRAINING_BATCH_SIZE, verbose=0, shuffle=False, callbacks=[self.tensorboard] if log_it else None)
+        except Exception as ex:
+            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(ex).__name__, ex.args)
+            print(message)
+
+        if self.episode > self.last_logged_episode:
+            log_it = True
+            self.last_log_episode = self.episode
+
+
+        if self.episode % UPDATE_TARGET_EVERY == 0:
+            try:
+                with sess.as_default():
+                    with sess.graph.as_default():
+                        return self.target_model.set_weights(self.training_model.get_weights())
+            except Exception as exAalborg_transfer_learning:
+                print("update counter")
+
+    def get_qs(self, state):
+        #print("get qs in")
+        try:
+            with sess.as_default():
+                with sess.graph.as_default():
+                    return self.training_model.predict(np.array(state).reshape(-1, *state.shape)/255)[0]
+        except Exception as ex:
+            print("get qs")
+
+    def train_in_loop(self):
+        
+        global sess
+        
+        backend.set_session(tf.Session(config=tf.ConfigProto()))
+        X = np.random.uniform(size=(1, IM_HEIGHT, IM_WIDTH,3)).astype(np.float32)
+        y = np.random.uniform(size=(1, self.num_actions)).astype(np.float32)
+        try:
+            with sess.as_default():
+                with sess.graph.as_default():
+                    #set_session(sess)
+                    self.training_model.fit(X,y, verbose=False, batch_size=1)
+        except Exception as ex:
+             print('train in loop')
+
+        self.training_initialized = True
+
+        while True:
+            if self.terminate:
+                return
+            self.train()
+            time.sleep(0.01)
+class ModifiedTensorBoard(TensorBoard):
+
+    # Overriding init to set initial step and writer (we want one log file for all .fit() calls)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.step = 1
+        self.writer = tf.summary.FileWriter(self.log_dir)
+
+    # Overriding this method to stop creating default log writer
+    def set_model(self, model):
+        pass
+
+    # Overrided, saves logs with our step number
+    # (otherwise every .fit() will start writing from 0th step)
+    def on_epoch_end(self, epoch, logs=None):
+        self.update_stats(**logs)
+
+    # Overrided
+    # We train for one batch only, no need to save anything at epoch end
+    def on_batch_end(self, batch, logs=None):
+        pass
+
+    # Overrided, so won't close writer
+    def on_train_end(self, _):
+        pass
+
+    # Custom method for saving own metrics
+    # Creates writer, writes custom metrics and closes writer
+    def update_stats(self, **stats):
+        self._write_logs(stats, self.step)
