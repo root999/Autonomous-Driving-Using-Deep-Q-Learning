@@ -300,3 +300,36 @@ class ModifiedTensorBoard(TensorBoard):
     def update_stats(self, **stats):
         self._write_logs(stats, self.step)
 
+if name == 'main':
+
+    savedstepnumber = 162560
+    num_of_episodes = None
+    LOAD_MODEL = True
+    model_name = "CG_Track2_no_transferlearning"
+    if not os.path.isdir(model_name):
+        os.makedirs(model_name)
+    if num_of_episodes is None:
+        num_of_episodes = float('inf')
+    if LOAD_MODEL is True:
+        with open(f"CG_Track2_no_transferlearning/info_step{savedstepnumber}.txt") as json_file:
+            data = json.load(json_file)
+            episode = data['episode']
+            epsilon = data['epsilon']
+            step = data['step']
+    else:
+        episode = 0
+        epsilon = 1
+        step = 0
+    agent = DQNAgent(LOAD_MODEL,model_name)
+    env = TorcsEnv(vision=True, throttle=True)
+    random.seed(1)
+    np.random.seed(1)
+    ep_rewards = []
+    tf.set_random_seed(1)
+    MIN_EPSILON = 0.001
+    trainer_thread = Thread(target=agent.train_in_loop, daemon=True)
+    trainer_thread.start()
+    while not agent.training_initialized:
+        time.sleep(0.01)
+    agent.get_qs(np.ones((IM_HEIGHT, IM_WIDTH,3)))
+
