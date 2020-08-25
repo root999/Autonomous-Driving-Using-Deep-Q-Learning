@@ -49,7 +49,6 @@ EPSILON_DECAY = 0.95
 MIN_EPSILON = 0.001
 AGGREGATE_STATS_EVERY = 10
 SAVE_MODEL_EVERY = 50
-MODEL_NAME = 'CG_Track2_no_transferlearning'
 SHOW_EVERY=1000
 MIN_REWARD = -1
 PREDICTION_BATCH_SIZE = 1
@@ -100,7 +99,7 @@ class DQNAgent:
         self.num_actions= 12
         self.training_model = self.create_model(load_model)
         self.target_model = self.create_model(load_model)
-        self.tensorboard = ModifiedTensorBoard(log_dir=f"logs/{MODEL_NAME}")
+        self.tensorboard = ModifiedTensorBoard(log_dir=f"logs/{model_name}")
         self.target_model.set_weights(self.training_model.get_weights())
         self.replay_memory = deque(maxlen=MEMORY_SIZE)
         self.update_counter = 0
