@@ -238,4 +238,65 @@ class DQNAgent:
                         return self.target_model.set_weights(self.training_model.get_weights())
             except Exception as exAalborg_transfer_learning:
                 print("update counter")
+    def get_qs(self, state):
+        #print("get qs in")
+        try:
+            with sess.as_default():
+                with sess.graph.as_default():
+                    return self.training_model.predict(np.array(state).reshape(-1, *state.shape)/255)[0]
+        except Exception as ex:
+            print("get qs")
+
+    def train_in_loop(self):
+        
+        global sess
+        
+        backend.set_session(tf.Session(config=tf.ConfigProto()))
+        X = np.random.uniform(size=(1, IM_HEIGHT, IM_WIDTH,3)).astype(np.float32)
+        y = np.random.uniform(size=(1, self.num_actions)).astype(np.float32)
+        try:
+            with sess.as_default():
+                with sess.graph.as_default():
+                    #set_session(sess)
+                    self.training_model.fit(X,y, verbose=False, batch_size=1)
+        except Exception as ex:
+             print('train in loop')
+
+        self.training_initialized = True
+
+        while True:
+            if self.terminate:
+                return
+            self.train()
+            time.sleep(0.01)
+class ModifiedTensorBoard(TensorBoard):
+
+    # Overriding init to set initial step and writer (we want one log file for all .fit() calls)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.step = 1
+        self.writer = tf.summary.FileWriter(self.log_dir)
+
+    # Overriding this method to stop creating default log writer
+    def set_model(self, model):
+        pass
+
+    # Overrided, saves logs with our step number
+    # (otherwise every .fit() will start writing from 0th step)
+    def on_epoch_end(self, epoch, logs=None):
+        self.update_stats(**logs)
+
+    # Overrided
+    # We train for one batch only, no need to save anything at epoch end
+    def on_batch_end(self, batch, logs=None):
+        pass
+
+    # Overrided, so won't close writer
+    def on_train_end(self, _):
+        pass
+
+    # Custom method for saving own metrics
+    # Creates writer, writes custom metrics and closes writer
+    def update_stats(self, **stats):
+        self._write_logs(stats, self.step)
 
