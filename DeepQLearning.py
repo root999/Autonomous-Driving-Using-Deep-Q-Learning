@@ -304,7 +304,7 @@ if name == 'main':
 
     savedstepnumber = 162560
     num_of_episodes = None
-    LOAD_MODEL = True
+    LOAD_MODEL = False
     model_name = "CG_Track2_no_transferlearning"
     if not os.path.isdir(model_name):
         os.makedirs(model_name)
