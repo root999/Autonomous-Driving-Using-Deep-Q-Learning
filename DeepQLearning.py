@@ -332,4 +332,32 @@ if name == 'main':
     while not agent.training_initialized:
         time.sleep(0.01)
     agent.get_qs(np.ones((IM_HEIGHT, IM_WIDTH,3)))
+    while episode <= num_of_episodes:
+        episode +=1
+        agent.tensorboard.step = episode
+        episode_reward = 0
+        agent.episode = episode
+        agent.step = step
+        observation = env.reset()
+        episode_start = time.time()
+        current_state = screen_getter()
+        done = False
+        while not done:
+            action = agent.make_action(epsilon,current_state)
+            new_observation, reward, done, _ = env.step(action)
+            new_state = screen_getter()
+            episode_reward +=reward
+            agent.update_memory((current_state,action,reward,new_state,done))
+            step +=1
+            current_state = new_state
+        ep_rewards.append(episode_reward)
+        reward_mean=np.mean(ep_rewards[-30:])
+        msg = "{0:4}:{1}\t Epsilon: {2:4.2f}\t Reward: {3:.1f}\t Episode Mean: {4:.1f}"
+        print(msg.format(episode,step,epsilon,episode_reward, reward_mean))
+        agent.log_rewards.write(count_episodes=episode,count_states=step,reward_episode=episode_reward,reward_mean=reward_mean)
+        
+        if epsilon > MIN_EPSILON:
+            epsilon *=EPSILON_DECAY
+            epsilon = max(MIN_EPSILON,epsilon)
+
 
