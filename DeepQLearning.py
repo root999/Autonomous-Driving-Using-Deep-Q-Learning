@@ -96,5 +96,56 @@ def  screen_getter():
     state = array_from_pixbuf(pb)
     state = cv2.resize(state,(IM_WIDTH,IM_HEIGHT))
     return state
+class DQNAgent:
+    def __init__(self,load_model,model_name):
+        self.num_actions= 12
+        self.training_model = self.create_model(load_model)
+        self.target_model = self.create_model(load_model)
+        self.tensorboard = ModifiedTensorBoard(log_dir=f"logs/{MODEL_NAME}")
+        self.target_model.set_weights(self.training_model.get_weights())
+        self.replay_memory = deque(maxlen=MEMORY_SIZE)
+        self.update_counter = 0
+        self.terminate = False
+        self.episode=0
+        self.step = 0
+        self.last_logged_episode = 0
+        self.training_initialized = False
+        self.logq_values = LogQValues(model_name)                 #Q değerlerinin saklanması için kullanılacak
+        self.log_rewards = LogReward(model_name)
+        
+    def create_model(self,load_model):
+        if load_model == True:
+            json_file = open("CG_Track2_no_transferlearning/step162560.json", 'r')
+            loaded_model_json = json_file.read()
+            json_file.close()
+            loaded_model = model_from_json(loaded_model_json)
+            # load weights into new model
+            loaded_model.load_weights("CG_Track2_no_transferlearning/step162560.h5")
+            loaded_model.compile(loss="mse", optimizer=Adam(lr=1e-4), metrics=["accuracy"])
+            print(loaded_model.summary)
+            return loaded_model
+        else:
+            model = Sequential()
+            model.add(Convolution2D(32, 8, 8, subsample=(4, 4), border_mode='same',input_shape=(IM_WIDTH,IM_HEIGHT,3)))  #80*80*4
+            model.add(Activation('relu'))
+            
+            model.add(Convolution2D(64, 4, 4, subsample=(2, 2), border_mode='same'))
+            model.add(Activation('relu'))
+            
+            model.add(Convolution2D(64, 3, 3, subsample=(1, 1), border_mode='same'))
+            model.add(Activation('relu'))
+            
+            model.add(Flatten())
+            model.add(Dense(512))
+            model.add(Activation('relu'))
+            model.add(Dense(self.num_actions, activation="linear"))
+
+            adam = Adam(lr=1e-4)
+            model.compile(loss='mse',optimizer=adam)
+ 
+ 
+            
+            print("creating new model")
+            return model
 
 
