@@ -7,6 +7,6 @@ This code developed based on gym-torcs [repo](https://github.com/ugo-nama-kun/gy
 
 ## Running the code
 
-You can start training the agent, you have to run
+To start training your agent you have to run
 
 ``` python DeepQLearning.py```
