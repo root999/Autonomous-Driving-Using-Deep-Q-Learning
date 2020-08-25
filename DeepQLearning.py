@@ -359,5 +359,35 @@ if name == 'main':
         if epsilon > MIN_EPSILON:
             epsilon *=EPSILON_DECAY
             epsilon = max(MIN_EPSILON,epsilon)
+        
+        if not episode % AGGREGATE_STATS_EVERY or episode == 1:
+            average_reward = sum(ep_rewards[-AGGREGATE_STATS_EVERY:])/len(ep_rewards[-AGGREGATE_STATS_EVERY:])
+            min_reward = min(ep_rewards[-AGGREGATE_STATS_EVERY:])
+            max_reward = max(ep_rewards[-AGGREGATE_STATS_EVERY:])
+            agent.tensorboard.update_stats(reward_avg=average_reward, reward_min=min_reward, reward_max=max_reward, epsilon=epsilon)
+
+        if episode % SAVE_MODEL_EVERY == 0 or episode == 1:
+            try:
+                with sess.as_default():
+                    with sess.graph.as_default():
+                        model_json = agent.training_model.to_json()
+                        with open(f"{model_name}/step{step}" + ".json", "w") as json_file:
+                            json_file.write(model_json)
+                        json_file.close()
+                        agent.training_model.save_weights(f"{model_name}/step{step}" + '.h5')
+                        save_dict = {}
+                        save_dict['episode']=episode
+                        save_dict['epsilon']=epsilon
+                        save_dict['step']=step
+                        with open(f"{model_name}/info_step{step}.txt",'w') as outfile:
+                            json.dump(save_dict,outfile)
+
+            except Exception as ex:
+                print('Saving ')
+
+
+        # Save model, but only when min reward is greater or equal a set value
+    agent.terminate = True
+    trainer_thread.join()
 
 
