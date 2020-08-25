@@ -10,3 +10,11 @@ This code developed based on gym-torcs [repo](https://github.com/ugo-nama-kun/gy
 To start training your agent you have to run
 
 ``` python DeepQLearning.py```
+
+
+
+## Running Prediction without Training the Agent
+
+Agent is driving the car while training. If you trained a model and if you want to drive a car using that model you should change
+
+  
