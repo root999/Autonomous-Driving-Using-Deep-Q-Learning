@@ -15,6 +15,9 @@ To start training your agent you have to run
 
 ## Running Prediction without Training the Agent
 
-Agent is driving the car while training. If you trained a model and if you want to drive a car using that model you should change
+Agent is driving the car while training. If you trained a model and if you want to drive a car using that model you should
+
+  Change LOAD_MODEL = False to True in [main function](https://github.com/root999/Autonomous-Driving-Using-Deep-Q-Learning/blob/master/DeepQLearning.py)
 
   
+ 
