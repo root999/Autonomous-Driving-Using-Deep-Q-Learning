@@ -148,4 +148,96 @@ class DQNAgent:
             print("creating new model")
             return model
 
+    def stack_frames(self,state,reset=False):
+        """
+        Alınan bir frame'nin işlenerek 4'lü frameStack'in oluşturulması için kullanılır.
+        Reset=True durumunda tura yeni başlandığı için aynı frame 4 kere stack'e basılmaktadır.
+        return edilen deque objesi stackFrame numpy array'e dönüştürülerek yapay sinir ağı beslenmektedir
+        """
+        state = process_frame(state)
+
+        if reset:
+            self.stack = deque([np.zeros(frame_shape, dtype=np.uint8) for i in range(4)], maxlen=4)
+            for _ in range(4):
+                self.stack.append(state)            
+        else:
+            self.stack.append(state)
+        state_stack = np.stack(self.stack,axis=2)
+        return state_stack
+    def make_action(self,epsilon,state):
+        if np.random.random() > epsilon:
+            action = np.argmax(agent.get_qs(state))
+        else:
+            action = np.random.randint(0,self.num_actions)
+        return action
+            
+    def update_memory(self, transition):
+        self.replay_memory.append(transition)
+    
+    def train(self):
+        global sess
+        if len(self.replay_memory) < MIN_MEMORY_SIZE:
+            return
+        minibatch = random.sample(self.replay_memory, MINIBATCH_SIZE)
+        current_states = np.array([transition[0] for transition in minibatch])/255
+        try:
+            with sess.as_default():
+                with sess.graph.as_default():
+                    #print("trainstarted")
+                    current_qs_list = self.training_model.predict(current_states,PREDICTION_BATCH_SIZE)
+        except Exception as ex:
+             print('Train ilk')
+
+        new_current_states = np.array([transition[3] for transition in minibatch])/255
+        try:
+            with sess.as_default():
+                with sess.graph.as_default():
+                    new_qs_list = self.target_model.predict(new_current_states,PREDICTION_BATCH_SIZE)
+        except Exception as ex:
+            print('Train iki')
+
+
+        X = []
+        y = []
+        for index, (current_state,action,reward,_,done) in enumerate(minibatch):
+            if not done:
+                max_new_q = np.max(new_qs_list[index])
+                new_q = reward + DISCOUNT*max_new_q
+            else:
+
+                new_q = reward
+            
+            current_qs = current_qs_list[index]
+            current_qs[action] = new_q
+
+            X.append(current_state)
+            y.append(current_qs)
+        self.logq_values.write(self.episode,self.step,current_qs)
+        log_it = False
+
+        if self.tensorboard.step > self.last_logged_episode:
+            log_it = True
+            self.last_log_episode = self.tensorboard.step
+        try:
+            with sess.as_default():
+                with sess.graph.as_default():
+                    self.training_model.fit(np.array(X)/255, np.array(y), batch_size=TRAINING_BATCH_SIZE, verbose=0, shuffle=False, callbacks=[self.tensorboard] if log_it else None)
+        except Exception as ex:
+            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(ex).__name__, ex.args)
+            print(message)
+
+        if self.episode > self.last_logged_episode:
+            log_it = True
+            self.last_log_episode = self.episode
+
+
+        if self.episode % UPDATE_TARGET_EVERY == 0:
+            try:
+                with sess.as_default():
+                    with sess.graph.as_default():
+                        return self.target_model.set_weights(self.training_model.get_weights())
+            except Exception as exAalborg_transfer_learning:
+                print("update counter")
+
 
